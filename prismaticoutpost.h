@@ -49,6 +49,7 @@ private slots:
 
 private:
     Ui::PrismaticOutpost *ui;
+    QDockWidget dock1;
     QMdiArea *mdiArea;
     QMap<QString, ToolWindow*> toolWindows;
     QMap<QString, MenuWindow*> menuWindows;

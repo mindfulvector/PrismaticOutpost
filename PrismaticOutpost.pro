@@ -1,13 +1,10 @@
-include(path/to/vcpkg/scripts/buildsystems/vcpkg.cmake)
+#include(../vcpkg/scripts/buildsystems/vcpkg.cmake)
 
 QT       += core gui sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
-
-QT += kddockwidgets
-CONFIG += kddockwidgets_qt6  # or kddockwidgets_qt5 for Qt 5
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.

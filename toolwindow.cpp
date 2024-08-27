@@ -31,6 +31,7 @@ void ToolWindow::setupUI()
     addButton = new QPushButton("+", containerWidget);
     addButton->setFixedSize(24, 24);
     layout->addWidget(addButton);
+    layout->setAlignment(Qt::AlignLeading);
 
     connect(addButton, &QPushButton::clicked, [this]() {
         addItem("New Item");
@@ -45,6 +46,8 @@ void ToolWindow::addItem(const QString &text)
     item->setFixedHeight(24);
     layout->insertWidget(layout->count() - 1, item);
     items.append(item);
+    layout->setStretch(layout->count()-1, 0);
+    item->setFixedSize(100, 24);
 
     connect(item, &QPushButton::clicked, [this, text]() {
         emit itemClicked(text);

@@ -23,6 +23,7 @@ PrismaticOutpost::PrismaticOutpost(QWidget *parent)
 {
     setupMdiArea();
     createActions();
+    this->move(200, 200);
 }
 
 PrismaticOutpost::~PrismaticOutpost() {}
@@ -51,10 +52,9 @@ void PrismaticOutpost::createNewToolWindow()
                                          tr("New Tool Window"), &ok);
     if (ok && !name.isEmpty()) {
         ToolWindow *toolWindow = new ToolWindow(name);
-        QMdiSubWindow *subWindow = mdiArea->addSubWindow(toolWindow);
-        subWindow->show();
+        toolWindow->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+        addDockWidget(Qt::TopDockWidgetArea, toolWindow);
         toolWindows[name] = toolWindow;
-
         connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
     }
 }
@@ -67,10 +67,9 @@ void PrismaticOutpost::createNewMenuWindow()
                                          tr("New Menu Window"), &ok);
     if (ok && !name.isEmpty()) {
         MenuWindow *menuWindow = new MenuWindow(name);
-        QMdiSubWindow *subWindow = mdiArea->addSubWindow(menuWindow);
-        subWindow->show();
+        menuWindow->setAllowedAreas(Qt::AllDockWidgetAreas);
+        addDockWidget(Qt::LeftDockWidgetArea, menuWindow);
         menuWindows[name] = menuWindow;
-
         connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
     }
 }

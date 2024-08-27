@@ -26,10 +26,12 @@ void MenuWindow::setupUI()
     layout = new QVBoxLayout(containerWidget);
     layout->setSpacing(2);
     layout->setContentsMargins(2, 2, 2, 2);
+    layout->minimumSize().setWidth(300);
 
     addButton = new QPushButton("+", containerWidget);
-    addButton->setFixedSize(24, 24);
+    addButton->setFixedSize(200, 24);
     layout->addWidget(addButton);
+    layout->setAlignment(Qt::AlignTop);
 
     connect(addButton, &QPushButton::clicked, [this]() {
         addItem("New Item");
@@ -44,8 +46,11 @@ void MenuWindow::addItem(const QString &text)
     item->setFixedHeight(24);
     layout->insertWidget(layout->count() - 1, item);
     items.append(item);
+    layout->setStretch(layout->count()-1, 0);
+    item->setFixedSize(200, 24);
 
     connect(item, &QPushButton::clicked, [this, text]() {
         emit itemClicked(text);
     });
 }
+
