@@ -16,21 +16,56 @@
 #ifndef TOOLWINDOW_H
 #define TOOLWINDOW_H
 
-#include "itemwindow.h"
+#include <QDockWidget>
+#include <QVector>
+#include <QPushButton>
+#include <QMenu>
+#include <QContextMenuEvent>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 
-class ToolWindow : public ItemWindow
+class ToolWindow : public QDockWidget
 {
     Q_OBJECT
 
 public:
-    explicit ToolWindow(const QString &name, QWidget *parent = nullptr);
-    void addItem(const QString &text, const QString &scriptPath) override;
+    enum LayoutType {
+        HorizontalLayout,
+        VerticalLayout
+    };
+
+    explicit ToolWindow(const QString &name, LayoutType layoutType = HorizontalLayout, QWidget *parent = nullptr);
+    void addItem(const QString &text, const QString &scriptPath = QString());
+    QStringList getItemNames() const;
+    QString setScriptPath(const QString &itemName, const QString &scriptPath);
+    QString getScriptPath(const QString &itemName) const;
+    LayoutType getLayoutType() const { return layoutType; }
+
+signals:
+    void itemClicked(const QString &itemText, const QString &scriptPath);
+    void editScriptRequested(const QString &itemText, const QString &scriptPath);
+    void deleteItemRequested(const QString &itemText);
+    void configurationChanged();
+
+protected:
+    //void contextMenuEvent(QContextMenuEvent *event) override;
+
+private slots:
+    void showItemContextMenu(const QPoint &pos);
+    void renameItem(QPushButton* button);
+    void editItemScript(QPushButton* button);
+    void deleteItem(QPushButton* button);
 
 private:
-    QHBoxLayout *layout;
+    QWidget *containerWidget;
+    QVector<QPushButton*> items;
+    QPushButton *addButton;
+    QMap<QString, QString> itemScripts;
+    QBoxLayout *layout;
+    LayoutType layoutType;
 
-    void setupUI() override;
+    void setupUI();
+    void setupItemContextMenu(QPushButton *button);
 };
 
-#endif // TOOLWINDOW_H
+#endif

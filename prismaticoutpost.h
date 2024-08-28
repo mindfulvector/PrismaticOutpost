@@ -23,7 +23,6 @@
 #include <QMenu>
 #include <QAction>
 #include "toolwindow.h"
-#include "menuwindow.h"
 #include "databasemanager.h"
 
 class ScriptEditor;
@@ -42,7 +41,6 @@ public:
 
 private slots:
     void createNewToolWindow();
-    void createNewMenuWindow();
     void openScriptEditor(const QString &itemName, const QString &scriptPath);
     void executeScript(const QString &itemName, const QString &scriptPath);
     void saveConfiguration();
@@ -53,14 +51,13 @@ private:
     QDockWidget dock1;
     QMdiArea *mdiArea;
     QMap<QString, ToolWindow*> toolWindows;
-    QMap<QString, MenuWindow*> menuWindows;
     DatabaseManager dbManager;
 
     void centerOnScreen();
     void setupMdiArea();
     void createActions();
     void setupDatabase();
-    QString getScriptPath(const QString &itemName, ItemWindow *window);
+    QString getScriptPath(const QString &itemName, ToolWindow *window);
 };
 
 #endif // PRISMATICOUTPOST_H

@@ -12,6 +12,7 @@
  * from this distribution or any derivative of this
  * distribution.
  */
+// pristmaticoutpost.cpp
 #include "prismaticoutpost.h"
 #include "scripteditor.h"
 
@@ -20,6 +21,7 @@
 #include <QInputDialog>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QStringLiteral>
 
 PrismaticOutpost::PrismaticOutpost(QWidget *parent)
     : QMainWindow(parent)
@@ -30,20 +32,9 @@ PrismaticOutpost::PrismaticOutpost(QWidget *parent)
     // Open the database
     if (!dbManager.openDatabase("prismaticoutpost.db")) {
         qDebug() << "Failed to open database";
-        // Handle the error appropriately
     }
 
     loadConfiguration();
-
-    // Connect itemClicked signals to executeScript for all windows
-    for (auto it = toolWindows.begin(); it != toolWindows.end(); ++it) {
-        connect(it.value(), &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
-        connect(it.value(), &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
-    }
-    for (auto it = menuWindows.begin(); it != menuWindows.end(); ++it) {
-        connect(it.value(), &MenuWindow::itemClicked, this, &PrismaticOutpost::executeScript);
-        connect(it.value(), &MenuWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
-    }
 
     this->show();
     this->centerOnScreen();
@@ -76,9 +67,6 @@ void PrismaticOutpost::createActions()
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
     QAction *newToolWindowAction = fileMenu->addAction(tr("New Tool Window"));
     connect(newToolWindowAction, &QAction::triggered, this, &PrismaticOutpost::createNewToolWindow);
-
-    QAction *newMenuWindowAction = fileMenu->addAction(tr("New Menu Window"));
-    connect(newMenuWindowAction, &QAction::triggered, this, &PrismaticOutpost::createNewMenuWindow);
 }
 
 void PrismaticOutpost::createNewToolWindow()
@@ -88,54 +76,23 @@ void PrismaticOutpost::createNewToolWindow()
                                          tr("Tool window name:"), QLineEdit::Normal,
                                          tr("New Tool Window"), &ok);
     if (ok && !name.isEmpty()) {
-        ToolWindow *toolWindow = new ToolWindow(name);
-        toolWindow->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
-        addDockWidget(Qt::TopDockWidgetArea, toolWindow);
-        toolWindows[name] = toolWindow;
-        connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
-        connect(toolWindow, &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
-    }
-}
-
-void PrismaticOutpost::createNewMenuWindow()
-{
-    bool ok;
-    QString name = QInputDialog::getText(this, tr("New Menu Window"),
-                                         tr("Menu window name:"), QLineEdit::Normal,
-                                         tr("New Menu Window"), &ok);
-    if (ok && !name.isEmpty()) {
-        MenuWindow *menuWindow = new MenuWindow(name);
-        menuWindow->setAllowedAreas(Qt::AllDockWidgetAreas);
-        addDockWidget(Qt::LeftDockWidgetArea, menuWindow);
-        menuWindows[name] = menuWindow;
-        connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::executeScript);
-        connect(menuWindow, &MenuWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
-    }
-}
-
-void PrismaticOutpost::openScriptEditor(const QString &itemName, const QString &scriptPath)
-{
-    QString actualScriptPath = scriptPath;
-    if (actualScriptPath.isEmpty()) {
-        ItemWindow *window = qobject_cast<ItemWindow*>(sender());
-        if (window) {
-            actualScriptPath = getScriptPath(itemName, window);
+        QStringList layoutOptions;
+        layoutOptions << tr("Horizontal") << tr("Vertical");
+        QString layoutChoice = QInputDialog::getItem(this, tr("Layout Type"),
+                                                     tr("Choose layout type:"), layoutOptions, 0, false, &ok);
+        if (ok && !layoutChoice.isEmpty()) {
+            ToolWindow::LayoutType layoutType = (layoutChoice == tr("Horizontal")) ?
+                                                    ToolWindow::HorizontalLayout :
+                                                    ToolWindow::VerticalLayout;
+            ToolWindow *toolWindow = new ToolWindow(name, layoutType);
+            connect(toolWindow, &ToolWindow::configurationChanged, this, &PrismaticOutpost::saveConfiguration);
+            toolWindow->setAllowedAreas(Qt::AllDockWidgetAreas);
+            addDockWidget(layoutType == ToolWindow::HorizontalLayout ? Qt::TopDockWidgetArea : Qt::LeftDockWidgetArea, toolWindow);
+            toolWindows[name] = toolWindow;
+            connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+            connect(toolWindow, &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
         }
     }
-
-    ScriptEditor *editor = new ScriptEditor(itemName, actualScriptPath, dbManager.getDatabaseDirectory(), this);
-    QMdiSubWindow *subWindow = mdiArea->addSubWindow(editor);
-    subWindow->resize(400, 600);
-    subWindow->show();
-}
-
-QString PrismaticOutpost::getScriptPath(const QString &itemName, ItemWindow *window)
-{
-    QString scriptPath = window->getScriptPath(itemName);
-    if (scriptPath.isEmpty()) {
-        scriptPath = dbManager.getDatabaseDirectory() + "/" + itemName + ".scm";
-    }
-    return scriptPath;
 }
 
 void PrismaticOutpost::saveConfiguration()
@@ -144,31 +101,19 @@ void PrismaticOutpost::saveConfiguration()
     for (auto it = toolWindows.begin(); it != toolWindows.end(); ++it) {
         QString key = "toolwindows." + it.key();
         dbManager.setValue(key, it.value()->getItemNames());
-    }
 
-    // Save MenuWindows
-    for (auto it = menuWindows.begin(); it != menuWindows.end(); ++it) {
-        QString key = "menuwindows." + it.key();
-        dbManager.setValue(key, it.value()->getItemNames());
-    }
+        // Save layout type
+        QString layoutKey = key + ".layout";
+        dbManager.setValue(layoutKey, static_cast<int>(static_cast<ToolWindow*>(it.value())->getLayoutType()));
 
-    // Save script paths
-    for (auto it = toolWindows.begin(); it != toolWindows.end(); ++it) {
-        QString key = "toolwindows." + it.key() + ".scripts";
-        QVariantMap scriptMap;
+        // Save script paths
+        QString itemsKey = key + ".items";
         for (const QString &itemName : it.value()->getItemNames()) {
-            scriptMap[itemName] = it.value()->getScriptPath(itemName);
+            QString itemKey = itemsKey + "." + itemName;
+            QString scriptPath = it.value()->getScriptPath(itemName);
+            dbManager.setValue(itemKey, scriptPath);
         }
-        dbManager.setValue(key, scriptMap);
-    }
 
-    for (auto it = menuWindows.begin(); it != menuWindows.end(); ++it) {
-        QString key = "menuwindows." + it.key() + ".scripts";
-        QVariantMap scriptMap;
-        for (const QString &itemName : it.value()->getItemNames()) {
-            scriptMap[itemName] = it.value()->getScriptPath(itemName);
-        }
-        dbManager.setValue(key, scriptMap);
     }
 }
 
@@ -178,60 +123,63 @@ void PrismaticOutpost::loadConfiguration()
     QStringList toolWindowKeys = dbManager.getChildKeys("toolwindows");
     for (const QString &key : toolWindowKeys) {
         QString name = key.section('.', -1);
-        ToolWindow *toolWindow = new ToolWindow(name, this);
-        addDockWidget(Qt::TopDockWidgetArea, toolWindow);
+
+        // Load layout type
+        QString layoutKey = "toolwindows." + name + ".layout";
+        ToolWindow::LayoutType layoutType = static_cast<ToolWindow::LayoutType>(dbManager.getValue(layoutKey).toInt());
+
+        QString scriptKey = "toolwindows." + name + ".items";
+        QStringList itemKeys = dbManager.getChildKeys(scriptKey).toVector();
+
+        ToolWindow *toolWindow = new ToolWindow(name, layoutType, this);
+        connect(toolWindow, &ToolWindow::configurationChanged, this, &PrismaticOutpost::saveConfiguration);
+        addDockWidget(layoutType == ToolWindow::HorizontalLayout ? Qt::TopDockWidgetArea : Qt::LeftDockWidgetArea, toolWindow);
         toolWindows[name] = toolWindow;
 
-        QStringList buttons = dbManager.getValue(key).toStringList();
-        for (const QString &button : buttons) {
-            // Buttons are initially added with no script bound to them
-            toolWindow->addItem(button, "");
+        for (const auto &itemKey : itemKeys) {
+
+            // Key path for this specific button key
+            QString scriptPath = dbManager.getValue(itemKey).toString();
+
+            // Get the button label
+            QString buttonLabel = itemKey.section('.', -1);
+
+            // Add button with label from script binding map and value (script name)
+            toolWindow->addItem(buttonLabel, scriptPath);
         }
 
-        connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
+        connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+        connect(toolWindow, &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
     }
+}
 
-    // Load MenuWindows
-    QStringList menuWindowKeys = dbManager.getChildKeys("menuwindows");
-    for (const QString &key : menuWindowKeys) {
-        QString name = key.section('.', -1);
-        MenuWindow *menuWindow = new MenuWindow(name, this);
-        addDockWidget(Qt::LeftDockWidgetArea, menuWindow);
-        menuWindows[name] = menuWindow;
-
-        QStringList items = dbManager.getValue(key).toStringList();
-        for (const QString &item : items) {
-            // Buttons are initially added with no script bound to them
-            menuWindow->addItem(item, "");
-        }
-
-        connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
+void PrismaticOutpost::openScriptEditor(const QString &itemName, const QString &scriptPath)
+{
+    ToolWindow *window = qobject_cast<ToolWindow*>(sender());
+    if(!window) {
+        qDebug() << QStringLiteral("Unable to open script editor on null ToolWindow reference!\n"
+                                   "Trying to load script editor for item `%1`, script path `$%2`").arg(itemName).arg(scriptPath);
     }
-
-    // Load script paths
-    for (const QString &key : toolWindowKeys) {
-        QString name = key.section('.', -1);
-        ToolWindow *toolWindow = toolWindows[name];
-
-        QString scriptKey = "toolwindows." + name + ".scripts";
-        QVariantMap scriptMap = dbManager.getValue(scriptKey).toMap();
-        for (auto it = scriptMap.begin(); it != scriptMap.end(); ++it) {
-            // Adding the same item key simply sets the script binding for it
-            toolWindow->addItem(it.key(), it.value().toString());
+    QString actualScriptPath = scriptPath;
+    if (actualScriptPath.isEmpty()) {
+        if (window) {
+            actualScriptPath = getScriptPath(itemName, window);
         }
     }
 
-    for (const QString &key : menuWindowKeys) {
-        QString name = key.section('.', -1);
-        MenuWindow *menuWindow = menuWindows[name];
+    ScriptEditor *editor = new ScriptEditor(*window, itemName, actualScriptPath, dbManager.getDatabaseDirectory(), this);
+    QMdiSubWindow *subWindow = mdiArea->addSubWindow(editor);
+    subWindow->resize(400, 600);
+    subWindow->show();
+}
 
-        QString scriptKey = "menuwindows." + name + ".scripts";
-        QVariantMap scriptMap = dbManager.getValue(scriptKey).toMap();
-        for (auto it = scriptMap.begin(); it != scriptMap.end(); ++it) {
-            // Adding the same item key simply sets the script binding for it
-            menuWindow->addItem(it.key(), it.value().toString());
-        }
+QString PrismaticOutpost::getScriptPath(const QString &itemName, ToolWindow *window)
+{
+    QString scriptPath = window->getScriptPath(itemName);
+    if (scriptPath.isEmpty()) {
+        scriptPath = dbManager.getDatabaseDirectory() + "/" + itemName + ".scm";
     }
+    return scriptPath;
 }
 
 void PrismaticOutpost::executeScript(const QString &itemName, const QString &scriptPath)

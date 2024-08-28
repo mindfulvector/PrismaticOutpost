@@ -14,6 +14,7 @@
  */
 // scripteditor.cpp
 #include "scripteditor.h"
+#include "toolwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -29,8 +30,8 @@
 //****************** Setup *****************//
 //******************************************//
 
-ScriptEditor::ScriptEditor(const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent)
-    : QWidget(parent), itemName(itemName), currentScriptPath(scriptPath), dbDir(dbDir), isDirty(false)
+ScriptEditor::ScriptEditor(ToolWindow &toolWindow, const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent)
+    : QWidget(parent), toolWindow(toolWindow), itemName(itemName), currentScriptPath(scriptPath), dbDir(dbDir), isDirty(false)
 {
     setupUI();
     loadScripts();
@@ -69,11 +70,10 @@ void ScriptEditor::setupUI()
     connect(revertButton, &QPushButton::clicked, this, &ScriptEditor::revertScript);
     connect(closeButton, &QPushButton::clicked, this, &ScriptEditor::closeEditor);
     connect(scriptEdit, &QPlainTextEdit::textChanged, this, &ScriptEditor::updateSymbolList);
-    connect(symbolCombo, QOverload<int>::of(&QComboBox::activated),
-            this, &ScriptEditor::jumpToSymbolByIndex);
+    connect(symbolCombo, QOverload<int>::of(&QComboBox::activated), this, &ScriptEditor::jumpToSymbolByIndex);
 
-    connect(scriptNameCombo, QOverload<int>::of(&QComboBox::activated),
-            this, [this](int index) {
+    connect(scriptNameCombo, QOverload<int>::of(&QComboBox::activated), this,
+            [this](int index) {
                 if (maybeSave()) {
                     QString newPath = scriptNameCombo->itemData(index).toString();
                     if (newPath.isEmpty()) {
@@ -87,12 +87,14 @@ void ScriptEditor::setupUI()
                         }
                     }
                     if (!newPath.isEmpty()) {
+                        toolWindow.setScriptPath(itemName, newPath);
                         loadScript(newPath);
                     }
                 }
             });
 
-    connect(scriptEdit, &QPlainTextEdit::textChanged, this, [this]() {
+    connect(scriptEdit, &QPlainTextEdit::textChanged, this,
+            [this]() {
         isDirty = true;
         updateWindowTitle();
     });
@@ -199,6 +201,8 @@ bool ScriptEditor::maybeSave()
 
 void ScriptEditor::saveScript()
 {
+    toolWindow.setScriptPath(itemName, currentScriptPath);
+
     QFile file(currentScriptPath);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream out(&file);
@@ -212,12 +216,14 @@ void ScriptEditor::revertScript()
 {
     if (QMessageBox::question(this, tr("Revert Changes"), tr("Are you sure you want to revert all changes?")) == QMessageBox::Yes) {
         loadScript(currentScriptPath);
+        toolWindow.setScriptPath(itemName, currentScriptPath);
     }
 }
 
 void ScriptEditor::scriptChanged(const QString &path)
 {
     if (path == currentScriptPath && !isDirty) {
+        toolWindow.setScriptPath(itemName, currentScriptPath);
         loadScript(path);
     }
 }

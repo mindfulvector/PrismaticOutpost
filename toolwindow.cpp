@@ -14,9 +14,11 @@
  */
 // toolwindow.cpp
 #include "toolwindow.h"
+#include "toolwindow.h"
+#include <QInputDialog>
 
-ToolWindow::ToolWindow(const QString &name, QWidget *parent)
-    : ItemWindow(name, parent)
+ToolWindow::ToolWindow(const QString &name, LayoutType layoutType, QWidget *parent)
+    : QDockWidget(name, parent), layoutType(layoutType)
 {
     setupUI();
 }
@@ -24,18 +26,28 @@ ToolWindow::ToolWindow(const QString &name, QWidget *parent)
 void ToolWindow::setupUI()
 {
     containerWidget = new QWidget(this);
-    layout = new QHBoxLayout(containerWidget);
+
+    if (layoutType == HorizontalLayout) {
+        layout = new QHBoxLayout(containerWidget);
+        layout->setAlignment(Qt::AlignLeading);
+        addButton = new QPushButton("+", containerWidget);
+        addButton->setFixedSize(24, 24);
+    } else {
+        layout = new QVBoxLayout(containerWidget);
+        layout->setAlignment(Qt::AlignTop);
+        addButton = new QPushButton("+", containerWidget);
+        addButton->setFixedSize(200, 24);
+    }
+
     layout->setSpacing(2);
     layout->setContentsMargins(2, 2, 2, 2);
-
-    addButton = new QPushButton("+", containerWidget);
-    addButton->setFixedSize(24, 24);
     layout->addWidget(addButton);
-    layout->setAlignment(Qt::AlignLeading);
 
     connect(addButton, &QPushButton::clicked, [this]() {
-        // Add a new button without any script bound to it
-        addItem(QStringLiteral("Btn#%1").arg(items.count()), "");
+        QString newItemText = (layoutType == HorizontalLayout)
+                                  ? QStringLiteral("Btn#%1").arg(items.count())
+                                  : QStringLiteral("Button #%1").arg(items.count());
+        addItem(newItemText, "");
     });
 
     setWidget(containerWidget);
@@ -43,15 +55,112 @@ void ToolWindow::setupUI()
 
 void ToolWindow::addItem(const QString &text, const QString &scriptPath)
 {
-    // Only add the item as a button to this window if it doesn't already exist
-    bool shouldAddButton = !itemScripts.contains(text);
+    if (!itemScripts.contains(text)) {
+        QPushButton *item = new QPushButton(text, containerWidget);
 
-    ItemWindow::addItem(text, scriptPath);
+        if (layoutType == HorizontalLayout) {
+            item->setFixedSize(100, 24);
+        } else {
+            item->setFixedSize(200, 24);
+        }
 
-    if(shouldAddButton) {
-        QPushButton *item = items.last();
-        item->setFixedSize(100, 24);
         layout->insertWidget(layout->count() - 1, item);
         layout->setStretch(layout->count() - 1, 0);
+
+        items.append(item);
+
+        connect(item, &QPushButton::clicked, [this, text, scriptPath]() {
+            emit itemClicked(text, scriptPath);
+        });
+
+        setupItemContextMenu(item);
     }
+
+    itemScripts[text] = scriptPath;
+}
+
+void ToolWindow::setupItemContextMenu(QPushButton *button)
+{
+    QMenu *contextMenu = new QMenu(button);
+
+    QAction *renameAction = contextMenu->addAction("Rename Item");
+    QAction *editAction = contextMenu->addAction("Edit Script");
+    QAction *deleteAction = contextMenu->addAction("Delete Item");
+
+    connect(renameAction, &QAction::triggered, this, [this, button]() { this->renameItem(button); });
+    connect(editAction, &QAction::triggered, this, [this, button]() { this->editItemScript(button); });
+    connect(deleteAction, &QAction::triggered, this, [this, button]() { this->deleteItem(button); });
+
+    button->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(button, &QPushButton::customContextMenuRequested, this, &ToolWindow::showItemContextMenu);
+}
+
+void ToolWindow::showItemContextMenu(const QPoint &pos)
+{
+    QPushButton *button = qobject_cast<QPushButton*>(sender());
+    if (button && button != addButton) {
+        QMenu *contextMenu = button->findChild<QMenu*>();
+        if (contextMenu) {
+            contextMenu->exec(button->mapToGlobal(pos));
+        }
+    }
+}
+
+void ToolWindow::renameItem(QPushButton* button)
+{
+    if (button) {
+        QString oldName = button->text();
+        QString newName = QInputDialog::getText(this, tr("Rename Item"), tr("New name:"), QLineEdit::Normal, oldName);
+        if (!newName.isEmpty() && newName != oldName) {
+            button->setText(newName);
+            if (itemScripts.contains(oldName)) {
+                itemScripts[newName] = itemScripts[oldName];
+                itemScripts.remove(oldName);
+            }
+        }
+        emit configurationChanged();
+    }
+}
+
+void ToolWindow::editItemScript(QPushButton* button)
+{
+    if (button) {
+        QString itemName = button->text();
+        QString scriptPath = itemScripts.value(itemName);
+        emit editScriptRequested(itemName, scriptPath);
+    }
+}
+
+void ToolWindow::deleteItem(QPushButton* button)
+{
+    if (button) {
+        QString itemName = button->text();
+        emit deleteItemRequested(itemName);
+
+        items.removeOne(button);
+        itemScripts.remove(itemName);
+        layout->removeWidget(button);
+        button->deleteLater();
+        emit configurationChanged();
+    }
+}
+
+QStringList ToolWindow::getItemNames() const
+{
+    QStringList names;
+    for (const QPushButton *item : items) {
+        names << item->text();
+    }
+    return names;
+}
+
+QString ToolWindow::setScriptPath(const QString &itemName, const QString &scriptPath)
+{
+    itemScripts.insert(itemName, scriptPath);
+    return itemScripts.value(itemName);
+}
+
+QString ToolWindow::getScriptPath(const QString &itemName) const
+{
+    return itemScripts.value(itemName);
 }

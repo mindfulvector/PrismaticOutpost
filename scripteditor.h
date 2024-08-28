@@ -12,8 +12,11 @@
  * from this distribution or any derivative of this
  * distribution.
  */
+// scripteditor.h
 #ifndef SCRIPTEDITOR_H
 #define SCRIPTEDITOR_H
+
+#include "toolwindow.h"
 
 #include <QWidget>
 #include <QPlainTextEdit>
@@ -30,7 +33,7 @@ class ScriptEditor : public QWidget
     //****************** Setup *****************//
     //******************************************//
 
-    public: explicit ScriptEditor(const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent = nullptr);
+    public: explicit ScriptEditor(ToolWindow &toolWindow, const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent = nullptr);
     private: void setupUI();
 
     //******************************************//
@@ -67,6 +70,7 @@ class ScriptEditor : public QWidget
     //******************************************//
 
     private:
+        ToolWindow &toolWindow;
         QString itemName;
         QString currentScriptPath;
         QString dbDir;

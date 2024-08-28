@@ -12,17 +12,13 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 
 SOURCES += \
     databasemanager.cpp \
-    itemwindow.cpp \
     main.cpp \
-    menuwindow.cpp \
     prismaticoutpost.cpp \
     scripteditor.cpp \
     toolwindow.cpp
 
 HEADERS += \
     databasemanager.h \
-    itemwindow.h \
-    menuwindow.h \
     prismaticoutpost.h \
     scripteditor.h \
     toolwindow.h

@@ -12,8 +12,8 @@
  * from this distribution or any derivative of this
  * distribution.
  */
+// main.cpp
 #include "prismaticoutpost.h"
-
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
