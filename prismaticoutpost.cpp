@@ -108,11 +108,17 @@ void PrismaticOutpost::saveConfiguration()
 
         // Save script paths
         QString itemsKey = key + ".items";
+        for (const QString &itemName : it.value()->getRemovedItemNames()) {
+            QString removedItemKey = itemsKey + "." + itemName;
+            dbManager.removeValue(removedItemKey);
+        }
+
         for (const QString &itemName : it.value()->getItemNames()) {
             QString itemKey = itemsKey + "." + itemName;
             QString scriptPath = it.value()->getScriptPath(itemName);
             dbManager.setValue(itemKey, scriptPath);
         }
+
 
     }
 }

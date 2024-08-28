@@ -114,8 +114,13 @@ void ToolWindow::renameItem(QPushButton* button)
         if (!newName.isEmpty() && newName != oldName) {
             button->setText(newName);
             if (itemScripts.contains(oldName)) {
+                // Add to list of items to be removed from DB when saved
+                removedItemNames.append(oldName);
+
+                // Add new item name using the same script binding
                 itemScripts[newName] = itemScripts[oldName];
                 itemScripts.remove(oldName);
+
             }
         }
         emit configurationChanged();
@@ -136,7 +141,7 @@ void ToolWindow::deleteItem(QPushButton* button)
     if (button) {
         QString itemName = button->text();
         emit deleteItemRequested(itemName);
-
+        removedItemNames.append(itemName);
         items.removeOne(button);
         itemScripts.remove(itemName);
         layout->removeWidget(button);
@@ -153,6 +158,12 @@ QStringList ToolWindow::getItemNames() const
     }
     return names;
 }
+
+QStringList ToolWindow::getRemovedItemNames() const
+{
+    return removedItemNames;
+}
+
 
 QString ToolWindow::setScriptPath(const QString &itemName, const QString &scriptPath)
 {

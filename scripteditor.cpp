@@ -131,7 +131,13 @@ void ScriptEditor::updateWindowTitle()
     if (isDirty) {
         title += " *";
     }
-    this->getMdiParent()->setWindowTitle(title);
+    QMdiSubWindow* mdiParent = this->getMdiParent();
+    if (mdiParent) {
+        mdiParent->setWindowTitle(title);
+    } else {
+        setWindowTitle(title);
+        qWarning() << "ScriptEditor: MDI parent is null when updating window title";
+    }
 }
 
 

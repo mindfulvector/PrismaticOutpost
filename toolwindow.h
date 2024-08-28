@@ -37,6 +37,7 @@ public:
     explicit ToolWindow(const QString &name, LayoutType layoutType = HorizontalLayout, QWidget *parent = nullptr);
     void addItem(const QString &text, const QString &scriptPath = QString());
     QStringList getItemNames() const;
+    QStringList getRemovedItemNames() const;
     QString setScriptPath(const QString &itemName, const QString &scriptPath);
     QString getScriptPath(const QString &itemName) const;
     LayoutType getLayoutType() const { return layoutType; }
@@ -61,6 +62,7 @@ private:
     QVector<QPushButton*> items;
     QPushButton *addButton;
     QMap<QString, QString> itemScripts;
+    QStringList removedItemNames;
     QBoxLayout *layout;
     LayoutType layoutType;
 
