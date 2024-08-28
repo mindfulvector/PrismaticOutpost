@@ -43,7 +43,8 @@ public:
 private slots:
     void createNewToolWindow();
     void createNewMenuWindow();
-    void openScriptEditor(const QString &buttonText);
+    void openScriptEditor(const QString &itemName, const QString &scriptPath);
+    void executeScript(const QString &itemName, const QString &scriptPath);
     void saveConfiguration();
     void loadConfiguration();
 
@@ -55,9 +56,11 @@ private:
     QMap<QString, MenuWindow*> menuWindows;
     DatabaseManager dbManager;
 
+    void centerOnScreen();
     void setupMdiArea();
     void createActions();
     void setupDatabase();
+    QString getScriptPath(const QString &itemName, ItemWindow *window);
 };
 
 #endif // PRISMATICOUTPOST_H

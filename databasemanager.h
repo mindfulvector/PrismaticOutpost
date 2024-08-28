@@ -19,6 +19,8 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QVariant>
+#include <QFileInfo>
+#include <QDir>
 
 class DatabaseManager : public QObject
 {
@@ -36,6 +38,10 @@ public:
     bool removeValue(const QString &key);
 
     QStringList getChildKeys(const QString &parentKey);
+
+    QString getDatabaseDirectory() const {
+        return QFileInfo(db.databaseName()).dir().absolutePath();
+    }
 
 private:
     QSqlDatabase db;

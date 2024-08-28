@@ -15,18 +15,55 @@
 #include "prismaticoutpost.h"
 #include "scripteditor.h"
 
+#include <QWindow>
 #include <QMdiSubWindow>
 #include <QInputDialog>
+#include <QScreen>
+#include <QGuiApplication>
 
 PrismaticOutpost::PrismaticOutpost(QWidget *parent)
     : QMainWindow(parent)
 {
     setupMdiArea();
     createActions();
-    this->move(200, 200);
+
+    // Open the database
+    if (!dbManager.openDatabase("prismaticoutpost.db")) {
+        qDebug() << "Failed to open database";
+        // Handle the error appropriately
+    }
+
+    loadConfiguration();
+
+    // Connect itemClicked signals to executeScript for all windows
+    for (auto it = toolWindows.begin(); it != toolWindows.end(); ++it) {
+        connect(it.value(), &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+        connect(it.value(), &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
+    }
+    for (auto it = menuWindows.begin(); it != menuWindows.end(); ++it) {
+        connect(it.value(), &MenuWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+        connect(it.value(), &MenuWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
+    }
+
+    this->show();
+    this->centerOnScreen();
 }
 
-PrismaticOutpost::~PrismaticOutpost() {}
+PrismaticOutpost::~PrismaticOutpost() {
+    saveConfiguration();
+    dbManager.closeDatabase();
+}
+
+void PrismaticOutpost::centerOnScreen()
+{
+    QScreen *screen = this->windowHandle()->screen();
+    QRect screenGeometry = screen->geometry();
+
+    int x = screenGeometry.x() + (screenGeometry.width() - this->width()) / 2;
+    int y = screenGeometry.y() + (screenGeometry.height() - this->height()) / 2;
+
+    this->move(x, y);
+}
 
 void PrismaticOutpost::setupMdiArea()
 {
@@ -55,7 +92,8 @@ void PrismaticOutpost::createNewToolWindow()
         toolWindow->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
         addDockWidget(Qt::TopDockWidgetArea, toolWindow);
         toolWindows[name] = toolWindow;
-        connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
+        connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+        connect(toolWindow, &ToolWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
     }
 }
 
@@ -70,17 +108,34 @@ void PrismaticOutpost::createNewMenuWindow()
         menuWindow->setAllowedAreas(Qt::AllDockWidgetAreas);
         addDockWidget(Qt::LeftDockWidgetArea, menuWindow);
         menuWindows[name] = menuWindow;
-        connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
+        connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::executeScript);
+        connect(menuWindow, &MenuWindow::editScriptRequested, this, &PrismaticOutpost::openScriptEditor);
     }
 }
 
-void PrismaticOutpost::openScriptEditor(const QString &buttonText)
+void PrismaticOutpost::openScriptEditor(const QString &itemName, const QString &scriptPath)
 {
-    ScriptEditor *editor = new ScriptEditor(this);
-    editor->setWindowTitle(buttonText);
+    QString actualScriptPath = scriptPath;
+    if (actualScriptPath.isEmpty()) {
+        ItemWindow *window = qobject_cast<ItemWindow*>(sender());
+        if (window) {
+            actualScriptPath = getScriptPath(itemName, window);
+        }
+    }
+
+    ScriptEditor *editor = new ScriptEditor(itemName, actualScriptPath, dbManager.getDatabaseDirectory(), this);
     QMdiSubWindow *subWindow = mdiArea->addSubWindow(editor);
-    subWindow->resize(400,600);
+    subWindow->resize(400, 600);
     subWindow->show();
+}
+
+QString PrismaticOutpost::getScriptPath(const QString &itemName, ItemWindow *window)
+{
+    QString scriptPath = window->getScriptPath(itemName);
+    if (scriptPath.isEmpty()) {
+        scriptPath = dbManager.getDatabaseDirectory() + "/" + itemName + ".scm";
+    }
+    return scriptPath;
 }
 
 void PrismaticOutpost::saveConfiguration()
@@ -96,6 +151,25 @@ void PrismaticOutpost::saveConfiguration()
         QString key = "menuwindows." + it.key();
         dbManager.setValue(key, it.value()->getItemNames());
     }
+
+    // Save script paths
+    for (auto it = toolWindows.begin(); it != toolWindows.end(); ++it) {
+        QString key = "toolwindows." + it.key() + ".scripts";
+        QVariantMap scriptMap;
+        for (const QString &itemName : it.value()->getItemNames()) {
+            scriptMap[itemName] = it.value()->getScriptPath(itemName);
+        }
+        dbManager.setValue(key, scriptMap);
+    }
+
+    for (auto it = menuWindows.begin(); it != menuWindows.end(); ++it) {
+        QString key = "menuwindows." + it.key() + ".scripts";
+        QVariantMap scriptMap;
+        for (const QString &itemName : it.value()->getItemNames()) {
+            scriptMap[itemName] = it.value()->getScriptPath(itemName);
+        }
+        dbManager.setValue(key, scriptMap);
+    }
 }
 
 void PrismaticOutpost::loadConfiguration()
@@ -110,7 +184,8 @@ void PrismaticOutpost::loadConfiguration()
 
         QStringList buttons = dbManager.getValue(key).toStringList();
         for (const QString &button : buttons) {
-            toolWindow->addItem(button);
+            // Buttons are initially added with no script bound to them
+            toolWindow->addItem(button, "");
         }
 
         connect(toolWindow, &ToolWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
@@ -126,9 +201,58 @@ void PrismaticOutpost::loadConfiguration()
 
         QStringList items = dbManager.getValue(key).toStringList();
         for (const QString &item : items) {
-            menuWindow->addItem(item);
+            // Buttons are initially added with no script bound to them
+            menuWindow->addItem(item, "");
         }
 
         connect(menuWindow, &MenuWindow::itemClicked, this, &PrismaticOutpost::openScriptEditor);
     }
+
+    // Load script paths
+    for (const QString &key : toolWindowKeys) {
+        QString name = key.section('.', -1);
+        ToolWindow *toolWindow = toolWindows[name];
+
+        QString scriptKey = "toolwindows." + name + ".scripts";
+        QVariantMap scriptMap = dbManager.getValue(scriptKey).toMap();
+        for (auto it = scriptMap.begin(); it != scriptMap.end(); ++it) {
+            // Adding the same item key simply sets the script binding for it
+            toolWindow->addItem(it.key(), it.value().toString());
+        }
+    }
+
+    for (const QString &key : menuWindowKeys) {
+        QString name = key.section('.', -1);
+        MenuWindow *menuWindow = menuWindows[name];
+
+        QString scriptKey = "menuwindows." + name + ".scripts";
+        QVariantMap scriptMap = dbManager.getValue(scriptKey).toMap();
+        for (auto it = scriptMap.begin(); it != scriptMap.end(); ++it) {
+            // Adding the same item key simply sets the script binding for it
+            menuWindow->addItem(it.key(), it.value().toString());
+        }
+    }
+}
+
+void PrismaticOutpost::executeScript(const QString &itemName, const QString &scriptPath)
+{
+    if (scriptPath.isEmpty()) {
+        qDebug() << "No script associated with item:" << itemName;
+        return;
+    }
+
+    QFile file(scriptPath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open script file:" << scriptPath;
+        return;
+    }
+
+    QString scriptContent = file.readAll();
+    file.close();
+
+    // TODO: Implement script execution logic here
+    // This could involve passing the script content to an interpreter
+    // or executing it in some other way depending on your requirements
+    qDebug() << "Executing script for item:" << itemName;
+    qDebug() << "Script content:" << scriptContent;
 }

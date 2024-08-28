@@ -34,22 +34,24 @@ void ToolWindow::setupUI()
     layout->setAlignment(Qt::AlignLeading);
 
     connect(addButton, &QPushButton::clicked, [this]() {
-        addItem("New Item");
+        // Add a new button without any script bound to it
+        addItem(QStringLiteral("Btn#%1").arg(items.count()), "");
     });
 
     setWidget(containerWidget);
 }
 
-void ToolWindow::addItem(const QString &text)
+void ToolWindow::addItem(const QString &text, const QString &scriptPath)
 {
-    QPushButton *item = new QPushButton(text, containerWidget);
-    item->setFixedHeight(24);
-    layout->insertWidget(layout->count() - 1, item);
-    items.append(item);
-    layout->setStretch(layout->count()-1, 0);
-    item->setFixedSize(100, 24);
+    // Only add the item as a button to this window if it doesn't already exist
+    bool shouldAddButton = !itemScripts.contains(text);
 
-    connect(item, &QPushButton::clicked, [this, text]() {
-        emit itemClicked(text);
-    });
+    ItemWindow::addItem(text, scriptPath);
+
+    if(shouldAddButton) {
+        QPushButton *item = items.last();
+        item->setFixedSize(100, 24);
+        layout->insertWidget(layout->count() - 1, item);
+        layout->setStretch(layout->count() - 1, 0);
+    }
 }

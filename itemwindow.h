@@ -18,6 +18,8 @@
 #include <QDockWidget>
 #include <QVector>
 #include <QPushButton>
+#include <QMenu>
+#include <QContextMenuEvent>
 
 class ItemWindow : public QDockWidget
 {
@@ -25,18 +27,29 @@ class ItemWindow : public QDockWidget
 
 public:
     explicit ItemWindow(const QString &name, QWidget *parent = nullptr);
-    virtual void addItem(const QString &text) = 0;
+    virtual void addItem(const QString &text, const QString &scriptPath = QString()) = 0;
     QStringList getItemNames() const;
+    QString getScriptPath(const QString &itemName) const;
 
 signals:
-    void itemClicked(const QString &itemText);
+    void itemClicked(const QString &itemText, const QString &scriptPath);
+    void editScriptRequested(const QString &itemText, const QString &scriptPath);
 
 protected:
     QWidget *containerWidget;
     QVector<QPushButton*> items;
     QPushButton *addButton;
+    QMap<QString, QString> itemScripts;
 
     virtual void setupUI() = 0;
+    void contextMenuEvent(QContextMenuEvent *event) override;
+
+public slots:
+    void showContextMenu(const QPoint &pos);
+
+private slots:
+    void editScript();
+    void renameItem();
 };
 
 #endif // ITEMWINDOW_H

@@ -20,35 +20,65 @@
 #include <QComboBox>
 #include <QPushButton>
 #include <QMdiSubWindow>
+#include <QFileSystemWatcher>
 
 class ScriptEditor : public QWidget
 {
     Q_OBJECT
 
-public:
-    explicit ScriptEditor(QWidget *parent = nullptr);
+    //******************************************//
+    //****************** Setup *****************//
+    //******************************************//
 
-private slots:
-    void saveScript();
-    void revertScript();
-    void closeEditor();
-    void updateSymbolList();
-    void jumpToSymbolByIndex(int index);
-    void jumpToSymbol(const QString &symbol);
+    public: explicit ScriptEditor(const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent = nullptr);
+    private: void setupUI();
 
-private:
-    QComboBox *scriptNameCombo;
-    QComboBox *symbolCombo;
-    QPlainTextEdit *scriptEdit;
-    QPushButton *saveButton;
-    QPushButton *revertButton;
-    QPushButton *closeButton;
+    //******************************************//
+    //********** MDI / Window Handling *********//
+    //******************************************//
+
+    private: QMdiSubWindow* getMdiParent();
+    private slots: void closeEditor();
+    private: void updateWindowTitle();
+
+    //******************************************//
+    //************* Script Handling ************//
+    //******************************************//
+
+    private slots: void refreshScriptList();
+    private: void loadScripts();
+    private: void loadScript(const QString &path);
+    private: bool maybeSave();
+    private slots: void saveScript();
+    private slots: void revertScript();
+    private slots: void scriptChanged(const QString &path);
+
+    //******************************************//
+    //********** Symbol List Handling **********//
+    //******************************************//
+
+    private slots: void updateSymbolList();
+    private slots: void jumpToSymbolByIndex(int index);
+    private slots: void jumpToSymbol(const QString &symbol);
 
 
-    void setupUI();
-    QMdiSubWindow* getMdiParent();
-    void loadScripts();
-    void loadSymbols();
+    //******************************************//
+    //***************** Fields *****************//
+    //******************************************//
+
+    private:
+        QString itemName;
+        QString currentScriptPath;
+        QString dbDir;
+        QComboBox *scriptNameCombo;
+        QComboBox *symbolCombo;
+        QPlainTextEdit *scriptEdit;
+        QPushButton *saveButton;
+        QPushButton *revertButton;
+        QPushButton *closeButton;
+        QFileSystemWatcher fileWatcher;
+        bool isDirty;
+
 };
 
 #endif // SCRIPTEDITOR_H

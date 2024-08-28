@@ -19,11 +19,26 @@
 #include <QPushButton>
 #include <QTextBlock>
 #include <QMdiSubWindow>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QInputDialog>
+#include <QMessageBox>
 
-ScriptEditor::ScriptEditor(QWidget *parent) : QWidget(parent)
+//******************************************//
+//****************** Setup *****************//
+//******************************************//
+
+ScriptEditor::ScriptEditor(const QString &itemName, const QString &scriptPath, const QString &dbDir, QWidget *parent)
+    : QWidget(parent), itemName(itemName), currentScriptPath(scriptPath), dbDir(dbDir), isDirty(false)
 {
     setupUI();
     loadScripts();
+    if (!scriptPath.isEmpty()) {
+        loadScript(scriptPath);
+    }
+    fileWatcher.addPath(dbDir);
+    connect(&fileWatcher, &QFileSystemWatcher::directoryChanged, this, &ScriptEditor::refreshScriptList);
 }
 
 void ScriptEditor::setupUI()
@@ -56,7 +71,37 @@ void ScriptEditor::setupUI()
     connect(scriptEdit, &QPlainTextEdit::textChanged, this, &ScriptEditor::updateSymbolList);
     connect(symbolCombo, QOverload<int>::of(&QComboBox::activated),
             this, &ScriptEditor::jumpToSymbolByIndex);
+
+    connect(scriptNameCombo, QOverload<int>::of(&QComboBox::activated),
+            this, [this](int index) {
+                if (maybeSave()) {
+                    QString newPath = scriptNameCombo->itemData(index).toString();
+                    if (newPath.isEmpty()) {
+                        QString newName = QInputDialog::getText(this, tr("New Script"), tr("Enter script name:"));
+                        if (!newName.isEmpty()) {
+                            newPath = dbDir + "/" + newName + ".scm";
+                            QFile file(newPath);
+                            file.open(QIODevice::WriteOnly);
+                            file.close();
+                            refreshScriptList();
+                        }
+                    }
+                    if (!newPath.isEmpty()) {
+                        loadScript(newPath);
+                    }
+                }
+            });
+
+    connect(scriptEdit, &QPlainTextEdit::textChanged, this, [this]() {
+        isDirty = true;
+        updateWindowTitle();
+    });
 }
+
+
+//******************************************//
+//********** MDI / Window Handling *********//
+//******************************************//
 
 QMdiSubWindow* ScriptEditor::getMdiParent()
 {
@@ -70,27 +115,117 @@ QMdiSubWindow* ScriptEditor::getMdiParent()
     return nullptr;
 }
 
+
+void ScriptEditor::closeEditor()
+{
+    if (maybeSave()) {
+        this->getMdiParent()->close();
+    }
+}
+
+void ScriptEditor::updateWindowTitle()
+{
+    QString title = QString("%1 - %2").arg(itemName, QFileInfo(currentScriptPath).fileName());
+    if (isDirty) {
+        title += " *";
+    }
+    this->getMdiParent()->setWindowTitle(title);
+}
+
+
+//******************************************//
+//************* Script Handling ************//
+//******************************************//
+
+void ScriptEditor::refreshScriptList()
+{
+    QString currentScript = scriptNameCombo->currentData().toString();
+    loadScripts();
+    int index = scriptNameCombo->findData(currentScript);
+    if (index != -1) {
+        scriptNameCombo->setCurrentIndex(index);
+    }
+}
+
 void ScriptEditor::loadScripts()
 {
-    // TODO: Implement loading of existing scripts
-    scriptNameCombo->addItem(tr("New Script"));
+    scriptNameCombo->clear();
+    scriptNameCombo->addItem(tr("New Script"), QString());
+
+    QDir dir(dbDir);
+    QStringList scripts = dir.entryList(QStringList() << "*.scm", QDir::Files);
+    for (const QString &script : scripts) {
+        scriptNameCombo->addItem(QFileInfo(script).baseName(), dbDir + "/" + script);
+    }
+
+    int index = scriptNameCombo->findData(currentScriptPath);
+    if (index != -1) {
+        scriptNameCombo->setCurrentIndex(index);
+    }
+}
+
+void ScriptEditor::loadScript(const QString &path)
+{
+    QFile file(path);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        scriptEdit->setPlainText(file.readAll());
+        currentScriptPath = path;
+        isDirty = false;
+        updateWindowTitle();
+        updateSymbolList();
+    }
+}
+
+
+bool ScriptEditor::maybeSave()
+{
+    if (!isDirty) {
+        return true;
+    }
+
+    QMessageBox::StandardButton ret = QMessageBox::warning(this, tr("Unsaved Changes"),
+                                                           tr("The script has been modified.\nDo you want to save your changes?"),
+                                                           QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+
+    if (ret == QMessageBox::Save) {
+        saveScript();
+        return true;
+    } else if (ret == QMessageBox::Cancel) {
+        return false;
+    }
+
+    return true;
 }
 
 void ScriptEditor::saveScript()
 {
-    // TODO: Implement saving script
+    QFile file(currentScriptPath);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << scriptEdit->toPlainText();
+        isDirty = false;
+        updateWindowTitle();
+    }
 }
 
 void ScriptEditor::revertScript()
 {
-    // TODO: Implement reverting script changes
+    if (QMessageBox::question(this, tr("Revert Changes"), tr("Are you sure you want to revert all changes?")) == QMessageBox::Yes) {
+        loadScript(currentScriptPath);
+    }
 }
 
-void ScriptEditor::closeEditor()
+void ScriptEditor::scriptChanged(const QString &path)
 {
-    // TODO: Implement proper closing behavior
-    this->getMdiParent()->close();
+    if (path == currentScriptPath && !isDirty) {
+        loadScript(path);
+    }
 }
+
+
+//******************************************//
+//********** Symbol List Handling **********//
+//******************************************//
 
 void ScriptEditor::updateSymbolList()
 {

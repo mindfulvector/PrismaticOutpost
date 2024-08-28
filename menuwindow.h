@@ -25,7 +25,7 @@ class MenuWindow : public ItemWindow
 
 public:
     explicit MenuWindow(const QString &name, QWidget *parent = nullptr);
-    void addItem(const QString &text) override;
+    void addItem(const QString &text, const QString &scriptPath = QString()) override;
 
 private:
     QVBoxLayout *layout;

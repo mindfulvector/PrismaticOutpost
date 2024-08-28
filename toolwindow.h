@@ -25,7 +25,7 @@ class ToolWindow : public ItemWindow
 
 public:
     explicit ToolWindow(const QString &name, QWidget *parent = nullptr);
-    void addItem(const QString &text) override;
+    void addItem(const QString &text, const QString &scriptPath) override;
 
 private:
     QHBoxLayout *layout;
