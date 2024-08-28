@@ -49,15 +49,43 @@ vcpkg (for third party Qt plugins)
 ```bash
 git clone https://github.com/yourusername/prismatic-outpost.git
 ```
-Then:
+
+### Windows
+To install `jq` and `conan` via `scoop.sh` (must already be installed following the Quickstart section at [scoop.sh](https://scoop.sh/#/)), run the `setup.bat` batch file:
+```batch
+setup.bat
+```
+
+### Linux/macOS
+TODO
+
+### Open the project and run it
 * Open the directory as a project in QtCreator
 * Ensure you are on Debug configuration
 * Press F5 to run 
 
-To pacakge a build, you will need to install CQtDeployer, then run (in the root of the project):
+
+## Creating a PackageKit (either a debug or release build for distribution)
+**Note:** This process uses CQtDeployer which you can install from that project's [releases page](https://github.com/QuasarApp/CQtDeployer/releases/tag/v1.6.2365).
+
+To create a PackageKit release, in QtCreator:
+1. Run **Build** > **Clean** (select the **Clean** command which is under __Build all Projects for All Configurations__)
+2. Run **Build** > **Build all Projects for All Configurations**
+3. In a terminal, at the root of the project, run:
+
 ```bash
 /path/to/CQtDeployer -bin ./build/Desktop_Qt_6_7_1_MinGW_64_bit-Debug/debug/ -qmake /path/to/qmake -targetDir DistributionKit -verbose 3 -debug
 ```
+
+then run
+```bash
+/path/to/CQtDeployer -bin ./build/Desktop_Qt_6_7_1_MinGW_64_bit-Release/release/ -qmake /path/to/qmake -targetDir DistributionKit -verbose 3 -debug
+```
+
+In both commands, adjust `/path/to/qmake` to the correct path and adjust `Desktop_Qt_6_7_1_MinGW_64_bit` to your exact point release of the Desktop Qt kit.
+
+It is **highly** recommended that you build **both** debug and release PackageKits, and distribute **both** of them to aid in debugging issues that might be encountered.
+
 
 ## 🤝 Contributing
 
