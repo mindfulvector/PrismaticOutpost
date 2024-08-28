@@ -1,10 +1,11 @@
 #ifndef SCRIPT_H
 #define SCRIPT_H
 
-#include <string>
-#include <vector>
-#include <memory>
-#include <map>
+#include <QString>
+#include <QVector>
+#include <QSharedPointer>
+#include <QMap>
+#include <QObject>
 
 class Environment;
 
@@ -12,8 +13,8 @@ class Environment;
 class Expression {
 public:
     virtual ~Expression() = default;
-    virtual std::string toString() const = 0;
-    virtual std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment> env) = 0;
+    virtual QString toString() const = 0;
+    virtual QSharedPointer<Expression> evaluate(QSharedPointer<Environment> env) = 0;
 };
 
 // Number expression
@@ -21,112 +22,104 @@ class Number : public Expression {
     double value;
 public:
     Number(double val);
-    std::string toString() const override {
-        return std::to_string(value);
+    QString toString() const override {
+        return QString::number(value);
     }
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment>) override {
-        return std::make_shared<Number>(*this);
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment>) override {
+        return QSharedPointer<Number>::create(*this);
     }
     double getValue() const { return value; }
-
 };
 
 // Symbol expression
 class Symbol : public Expression {
-    std::string name;
+    QString name;
 public:
-    Symbol(const std::string& n) : name(n) {}
-    std::string toString() const override {
+    Symbol(const QString& n) : name(n) {}
+    QString toString() const override {
         return name;
     }
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment> env) override;
-    const std::string& getName() const { return name; }
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment> env) override;
+    const QString& getName() const { return name; }
 };
 
 // List expression
 class List : public Expression {
-    std::vector<std::shared_ptr<Expression>> elements;
+    QVector<QSharedPointer<Expression>> elements;
 public:
-    List(const std::vector<std::shared_ptr<Expression>>& elems) : elements(elems) {}
-    std::string toString() const override {
-        std::string result = "(";
-        for (size_t i = 0; i < elements.size(); ++i) {
-            if (i > 0) result += " ";
-            result += elements[i]->toString();
-        }
-        return result + ")";
-    }
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment> env) override;
-    const std::vector<std::shared_ptr<Expression>>& getElements() const { return elements; }
+    List(const QVector<QSharedPointer<Expression>>& elems) : elements(elems) {}
+    QString toString() const override;
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment> env) override;
+    const QVector<QSharedPointer<Expression>>& getElements() const { return elements; }
 };
 
 // Function expression
 class Function : public Expression {
-    std::vector<std::string> parameters;
-    std::shared_ptr<Expression> body;
-    std::shared_ptr<Environment> closure;
+    QVector<QString> parameters;
+    QSharedPointer<Expression> body;
+    QSharedPointer<Environment> closure;
 public:
-    Function(const std::vector<std::string>& params, std::shared_ptr<Expression> bod, std::shared_ptr<Environment> env)
+    Function(const QVector<QString>& params, QSharedPointer<Expression> bod, QSharedPointer<Environment> env)
         : parameters(params), body(bod), closure(env) {}
-    std::string toString() const override {
+    QString toString() const override {
         return "<function>";
     }
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment>) override {
-        return std::make_shared<Function>(*this);
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment>) override {
+        return QSharedPointer<Function>::create(*this);
     }
-    std::shared_ptr<Expression> apply(const std::vector<std::shared_ptr<Expression>>& args);
+    QSharedPointer<Expression> apply(const QVector<QSharedPointer<Expression>>& args);
 };
 
 // Class expression
 class Class : public Expression {
-    std::map<std::string, std::shared_ptr<Expression>> methods;
+    QMap<QString, QSharedPointer<Expression>> methods;
 public:
-    void addMethod(const std::string& name, std::shared_ptr<Expression> method);
-    std::string toString() const override;
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment> env) override;
-    std::shared_ptr<Expression> getMethod(const std::string& name) const;
+    void addMethod(const QString& name, QSharedPointer<Expression> method);
+    QString toString() const override;
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment> env) override;
+    QSharedPointer<Expression> getMethod(const QString& name) const;
 };
 
 // Instance expression
 class Instance : public Expression {
-    std::shared_ptr<Class> cls;
-    std::map<std::string, std::shared_ptr<Expression>> attributes;
+    QSharedPointer<Class> cls;
+    QMap<QString, QSharedPointer<Expression>> attributes;
 public:
-    Instance(std::shared_ptr<Class> c) : cls(c) {}
-    std::string toString() const override {
+    Instance(QSharedPointer<Class> c) : cls(c) {}
+    QString toString() const override {
         return "<instance>";
     }
-    std::shared_ptr<Expression> evaluate(std::shared_ptr<Environment>) override {
-        return std::make_shared<Instance>(*this);
+    QSharedPointer<Expression> evaluate(QSharedPointer<Environment>) override {
+        return QSharedPointer<Instance>::create(*this);
     }
-    void setAttribute(const std::string& name, std::shared_ptr<Expression> value) {
+    void setAttribute(const QString& name, QSharedPointer<Expression> value) {
         attributes[name] = value;
     }
-    std::shared_ptr<Expression> getAttribute(const std::string& name) const {
-        auto it = attributes.find(name);
-        if (it != attributes.end()) {
-            return it->second;
-        }
-        return cls->getMethod(name);
-    }
+    QSharedPointer<Expression> getAttribute(const QString& name) const;
 };
 
 // Environment to store variable bindings
 class Environment {
-    std::map<std::string, std::shared_ptr<Expression>> bindings;
-    std::shared_ptr<Environment> parent;
+    QMap<QString, QSharedPointer<Expression>> bindings;
+    QSharedPointer<Environment> parent;
 public:
-    Environment(std::shared_ptr<Environment> p = nullptr) : parent(p) {}
-    void define(const std::string& name, std::shared_ptr<Expression> value);
-    std::shared_ptr<Expression> lookup(const std::string& name) const;
+    Environment(QSharedPointer<Environment> p = nullptr) : parent(p) {}
+    void define(const QString& name, QSharedPointer<Expression> value);
+    QSharedPointer<Expression> lookup(const QString& name) const;
 };
 
 // Script manager
-class Script {
-    std::vector<std::string> tokenize(const std::string& str);
-    std::shared_ptr<Expression> parse(std::vector<std::string>::iterator& it, std::vector<std::string>::iterator end);
+class Script : public QObject {
+
+public:
+    explicit Script(QObject *parent = nullptr);
+
+    QVector<QString> tokenize(const QString& str);
+    QSharedPointer<Expression> parse(QVector<QString>::iterator& it, QVector<QString>::iterator end);
     void repl();
-    std::wstring ScriptEscapeString(const std::wstring& str);
+
+private:
+    QString scriptEscapeString(const QString& str);
 };
 
 #endif // SCRIPT_H

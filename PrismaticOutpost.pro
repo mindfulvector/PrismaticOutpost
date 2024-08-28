@@ -1,10 +1,19 @@
-#include(../vcpkg/scripts/buildsystems/vcpkg.cmake)
-
 QT       += core gui sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
+
+# Conan 2.0 manual integration ################################################################################
+CONAN_INCLUDEPATH = $$system(conan inspect . --format=json | jq -r '.include_paths[]' | tr '\n' ' ')          #
+CONAN_LIBS = $$system(conan inspect . --format=json | jq -r '.lib_paths[]' | sed 's/^/-L/' | tr '\n' ' ')     #
+CONAN_BINDIRS = $$system(conan inspect . --format=json | jq -r '.bin_paths[]' | sed 's/^/-L/' | tr '\n' ' ')  #
+CONAN_LIBS += $$system(conan inspect . --format=json | jq -r '.libs[]' | sed 's/^/-l/' | tr '\n' ' ')         #
+                                                                                                              #
+INCLUDEPATH += $$CONAN_INCLUDEPATH                                                                            #
+LIBS += $$CONAN_LIBS $$CONAN_BINDIRS                                                                          #
+###############################################################################################################
+
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -14,12 +23,14 @@ SOURCES += \
     databasemanager.cpp \
     main.cpp \
     prismaticoutpost.cpp \
+    script.cpp \
     scripteditor.cpp \
     toolwindow.cpp
 
 HEADERS += \
     databasemanager.h \
     prismaticoutpost.h \
+    script.h \
     scripteditor.h \
     toolwindow.h
 
@@ -32,3 +43,6 @@ CONFIG += embed_translations
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    conanfile.txt
