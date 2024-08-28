@@ -99,7 +99,7 @@ engine's source or binary distribution.
 
 ## 🌈 Join the Prismatic Revolution!
 
-PrismaticOutpost is more than just a development environment—it's a new way of thinking about creating and managing digital
+PrismaticOutpost is more than just a development environment—it's a *renewed* way of thinking about creating and managing digital
 projects. Whether you're a seasoned developer, a business user looking for a powerful alternative to traditional tools like
 Access or FileMaker, or simply someone with big ideas, PrismaticOutpost provides the canvas for your digital creations.
 
