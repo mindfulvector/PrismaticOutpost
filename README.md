@@ -42,9 +42,10 @@ technologies and development practices.
 ## 🚀 Getting Started
 
 Prerequisites:
-IDE/Compiler: QtCreator 13.0.1
-Kit: Desktop Qt 6.7.1
-vcpkg (for third party Qt plugins)
+
+* IDE/Compiler: QtCreator 13.0.1
+* Kit: Desktop Qt 6.7.1
+* vcpkg (for third party Qt plugins)
 
 ```bash
 git clone https://github.com/yourusername/prismatic-outpost.git
