@@ -15,7 +15,7 @@ It combines the flexibility of scripting, the power of databases, and the ease o
 - **📊 Dock-based Tiling Interface**: Effortlessly manage multiple projects as separate Workspaces, with tiling window management for each workspace.
 - **🚀 Scheme Scripting**: Harness the power of Scheme for automation and customization. Other scripting languages will be added as soon as possible.
 - **🗄️ Hierarchical Data Storage**: SQLite-backed, accessible right inside your code as `dot.notation.paths.to.any.database.record`.
-- **🌐 Web-Ready**: Run scripts in sandboxed environment directly within the interface, or deploy them online instantly. Sensitive backend scripts can be triggered remotely with strong authentication and built-in SSL.
+- **🌐 Web-Ready**: Run scripts in sandboxed environment directly within the interface, or deploy them online instantly as webassembly apps. Sensitive backend scripts can be triggered remotely with strong authentication and built-in SSL.
 - **🔄 Cross-Platform**: Scripts are compile to WebAssembly for unparalleled compatibility and execution speed.
 - **🔗 Public Sharing**: Instantly share your work with ngrok integration without paying any hosting fees, or deploy it to our cloud infrastructure.
 - **🐳 Docker Integration**: Seamless backend dependency management integrated via the use of Docker images.
